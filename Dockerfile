@@ -46,6 +46,7 @@ ARG UID="473"
 ARG USERNAME="alloy"
 # Force non-interactive mode for tzdata package install
 ARG DEBIAN_FRONTEND="noninteractive"
+ARG OPENSSL_VERSION="3.0.13-0ubuntu3.16"
 
 LABEL org.opencontainers.image.source="https://github.com/grafana/alloy"
 
@@ -54,6 +55,8 @@ RUN apt-get update \
     && apt-get install -qy --no-install-recommends \
         ca-certificates \
         libsystemd0 \
+        libssl3t64=${OPENSSL_VERSION} \
+        openssl=${OPENSSL_VERSION} \
         tzdata \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
