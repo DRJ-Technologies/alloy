@@ -1,31 +1,49 @@
 name: Export Morningwood Alloy ARM64 artifact
 
 on:
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      source_sha:
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   build:
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    if: github.repository == 'DRJ-Technologies/k8s' && github.event.repository.private == true && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
-      - name: Checkout dispatched source
+      - name: Require the private manual main caller
+        shell: bash
+        env:
+          CALLER_PRIVATE: ${{ github.event.repository.private }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          test "$GITHUB_REPOSITORY" = DRJ-Technologies/k8s
+          test "$CALLER_PRIVATE" = true
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REF" = refs/heads/main
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+
+      - name: Checkout the requested public producer
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
-          ref: ${{ github.sha }}
+          repository: DRJ-Technologies/alloy
+          ref: ${{ inputs.source_sha }}
           fetch-depth: 0
           persist-credentials: false
 
       - name: Read native version from clean main source
         id: version
         shell: bash
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
         run: |
-          test "$GITHUB_EVENT_NAME" = workflow_dispatch
-          test "$GITHUB_REF" = refs/heads/main
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse refs/remotes/origin/main)"
           test -z "$(git status --porcelain)"
           version="$(RELEASE_TAG='' ./scripts/image-tag)"
           test -n "$version"
