@@ -44,7 +44,8 @@ jobs:
         run: |
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           test "$(git rev-parse HEAD)" = "$(git rev-parse refs/remotes/origin/main)"
-          test -z "$(git status --porcelain)"
+          source_status="$(git status --porcelain)"
+          test -z "$source_status"
           version="$(RELEASE_TAG='' ./scripts/image-tag)"
           test -n "$version"
           printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
