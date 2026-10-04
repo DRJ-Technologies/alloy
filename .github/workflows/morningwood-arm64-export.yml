@@ -55,7 +55,8 @@ jobs:
         run: |
           test "$RUNNER_ENVIRONMENT" = github-hosted
           df -h "$RUNNER_TEMP"
-          sudo rm -rf -- /usr/local/lib/android /usr/share/dotnet
+          sudo rm -rf -- /usr/local/lib/android /usr/share/dotnet \
+            /usr/share/swift /usr/local/.ghcup /usr/lib/jvm
           df -h "$RUNNER_TEMP"
 
       - name: Set up ARM64 emulation
@@ -84,6 +85,7 @@ jobs:
             docker buildx version
             docker buildx inspect --bootstrap
           } > "$output/tools.log" 2>&1
+          df -h "$RUNNER_TEMP"
           docker buildx build --platform linux/arm64 \
             --build-arg RELEASE_BUILD=1 --build-arg VERSION="$VERSION" \
             --file Dockerfile --progress plain --provenance=mode=max \
