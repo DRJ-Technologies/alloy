@@ -1,0 +1,74 @@
+name: Export Morningwood Alloy ARM64 artifact
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout dispatched source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Read native version from clean main source
+        id: version
+        shell: bash
+        run: |
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REF" = refs/heads/main
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          version="$(RELEASE_TAG='' ./scripts/image-tag)"
+          test -n "$version"
+          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+
+      - name: Set up ARM64 emulation
+        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
+        with:
+          platforms: arm64
+
+      - name: Set up isolated Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+        with:
+          driver: docker-container
+
+      - name: Build native Dockerfile and export OCI artifact
+        id: build
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          BUILDX_METADATA_PROVENANCE: max
+          BUILDX_METADATA_WARNINGS: "1"
+        run: |
+          output="$RUNNER_TEMP/alloy-arm64"
+          mkdir -p "$output"
+          printf 'path=%s\n' "$output" >> "$GITHUB_OUTPUT"
+          {
+            docker version
+            docker buildx version
+            docker buildx inspect --bootstrap
+          } > "$output/tools.log" 2>&1
+          docker buildx build --platform linux/arm64 \
+            --build-arg RELEASE_BUILD=1 --build-arg VERSION="$VERSION" \
+            --file Dockerfile --progress plain --provenance=mode=max \
+            --metadata-file "$output/build-metadata.json" \
+            --output "type=oci,dest=$output/alloy-linux-arm64.oci.tar" \
+            . 2>&1 | tee "$output/build.log"
+
+      - name: Retain artifact and native failure evidence
+        if: always() && steps.build.outputs.path != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: alloy-linux-arm64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.build.outputs.path }}
+          if-no-files-found: error
+          compression-level: 0
