@@ -50,6 +50,14 @@ jobs:
           test -n "$version"
           printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
 
+      - name: Free unused hosted-runner SDK space
+        shell: bash
+        run: |
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          df -h "$RUNNER_TEMP"
+          sudo rm -rf -- /usr/local/lib/android /usr/share/dotnet
+          df -h "$RUNNER_TEMP"
+
       - name: Set up ARM64 emulation
         uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
         with:
