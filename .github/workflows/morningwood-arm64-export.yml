@@ -12,7 +12,12 @@ permissions:
 
 jobs:
   build:
-    if: github.repository == 'DRJ-Technologies/k8s' && github.event.repository.private == true && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    if: >-
+      (github.repository == 'DRJ-Technologies/k8s' ||
+       github.repository == 'DRJ-Technologies/build-platform') &&
+      github.event.repository.private == true &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
@@ -22,7 +27,10 @@ jobs:
           CALLER_PRIVATE: ${{ github.event.repository.private }}
           SOURCE_SHA: ${{ inputs.source_sha }}
         run: |
-          test "$GITHUB_REPOSITORY" = DRJ-Technologies/k8s
+          case "$GITHUB_REPOSITORY" in
+            DRJ-Technologies/k8s|DRJ-Technologies/build-platform) ;;
+            *) exit 1 ;;
+          esac
           test "$CALLER_PRIVATE" = true
           test "$GITHUB_EVENT_NAME" = workflow_dispatch
           test "$GITHUB_REF" = refs/heads/main
